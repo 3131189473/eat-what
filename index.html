@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>今天吃什么</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --text: #eee;
+    --accent: #e94560;
+    --gold: #f5c518;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* 背景粒子 */
+  .particles {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: floatUp linear infinite;
+    opacity: 0.15;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+    10%  { opacity: 0.2; }
+    90%  { opacity: 0.1; }
+    100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(245, 197, 24, 0.4);
+    letter-spacing: 4px;
+    animation: titlePulse 2s ease-in-out infinite;
+  }
+  @keyframes titlePulse {
+    0%, 100% { text-shadow: 0 0 30px rgba(245, 197, 24, 0.4); }
+    50%      { text-shadow: 0 0 50px rgba(245, 197, 24, 0.7), 0 0 80px rgba(233, 69, 96, 0.3); }
+  }
+
+  /* 转盘区域 */
+  .wheel-wrapper {
+    position: relative;
+    width: 420px;
+    height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 外圈装饰 */
+  .wheel-outer {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 440px; height: 440px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a,
+                                    #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a,
+                                    #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a,
+                                    #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a,
+                                    #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a,
+                                    #2a2a4a, #3a3a5a, #2a2a4a, #3a3a5a);
+    box-shadow: 0 0 40px rgba(233, 69, 96, 0.3), inset 0 0 20px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 灯泡装饰点 */
+  .bulb {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #f5c518;
+    box-shadow: 0 0 8px #f5c518;
+  }
+
+  canvas {
+    position: relative;
+    z-index: 2;
+    border-radius: 50%;
+    cursor: pointer;
+    filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5));
+  }
+
+  /* 指针 */
+  .pointer {
+    position: absolute;
+    right: 0px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-right: 48px solid #e94560;
+    filter: drop-shadow(0 2px 6px rgba(233,69,96,0.6));
+    transition: transform 0.1s;
+  }
+  .pointer.spinning { animation: pointerShake 0.15s ease-in-out infinite; }
+  @keyframes pointerShake {
+    0%, 100% { transform: translateY(-50%) rotate(0deg); }
+    25%      { transform: translateY(-50%) rotate(3deg); }
+    75%      { transform: translateY(-50%) rotate(-3deg); }
+  }
+
+  /* 中心按钮 */
+  .center-btn {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #e94560, #c0392b);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(233, 69, 96, 0.5);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .center-btn:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    box-shadow: 0 6px 30px rgba(233, 69, 96, 0.7);
+  }
+  .center-btn:active {
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  .center-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    animation: btnPulse 0.8s ease-in-out infinite;
+  }
+  @keyframes btnPulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(233, 69, 96, 0.5); }
+    50%      { box-shadow: 0 4px 35px rgba(233, 69, 96, 0.9); }
+  }
+
+  /* 结果弹窗 */
+  .result-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  .result-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .result-card {
+    background: linear-gradient(135deg, #16213e, #1a1a2e);
+    border: 2px solid #e94560;
+    border-radius: 20px;
+    padding: 40px 50px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(233,69,96,0.2);
+    transform: scale(0.8);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .result-overlay.show .result-card {
+    transform: scale(1);
+  }
+  .result-emoji { font-size: 4rem; margin-bottom: 10px; }
+  .result-label { color: #999; font-size: 0.9rem; letter-spacing: 2px; }
+  .result-food {
+    font-size: 2.5rem;
+    color: var(--gold);
+    font-weight: bold;
+    margin: 10px 0 20px;
+    text-shadow: 0 0 20px rgba(245,197,24,0.3);
+  }
+  .result-btns { display: flex; gap: 12px; justify-content: center; }
+  .btn {
+    padding: 10px 24px;
+    border-radius: 25px;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #e94560, #c0392b);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(233,69,96,0.4);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 25px rgba(233,69,96,0.6); transform: translateY(-2px); }
+  .btn-ghost {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+  }
+  .btn-ghost:hover { color: #fff; border-color: #888; }
+
+  /* 底部控制栏 */
+  .controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+  .btn-sm {
+    padding: 8px 20px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    background: transparent;
+    color: #aaa;
+    font-size: 0.85rem;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+    font-family: inherit;
+  }
+  .btn-sm:hover { color: #fff; border-color: var(--accent); background: rgba(233,69,96,0.1); }
+
+  /* 自定义食物输入 */
+  .custom-panel {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 420px;
+  }
+  .custom-panel input {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    background: var(--card);
+    color: #fff;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .custom-panel input:focus { border-color: var(--accent); }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 15px;
+    background: rgba(233,69,96,0.15);
+    color: #e94560;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tag:hover { background: rgba(233,69,96,0.3); }
+  .tag .remove { font-weight: bold; opacity: 0.5; }
+  .tag:hover .remove { opacity: 1; }
+
+  /* 食物标签列表 */
+  .food-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    max-width: 420px;
+  }
+  .food-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px 5px 12px;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #ccc;
+    font-size: 0.82rem;
+    cursor: default;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .food-tag:hover {
+    background: rgba(233,69,96,0.12);
+    border-color: rgba(233,69,96,0.3);
+    color: #fff;
+  }
+  .food-tag .del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #888;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 2px;
+  }
+  .food-tag .del:hover {
+    background: #e94560;
+    color: #fff;
+  }
+
+
+  /* ========== 营养摘要 ========== */
+  .nutri-summary {
+    margin: 14px 0 16px;
+    padding: 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    text-align: left;
+  }
+  .nutri-summary .nutri-title {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+  .nutri-recommend {
+    font-size: 0.72rem;
+    color: #f5c518;
+    margin-bottom: 10px;
+    line-height: 1.5;
+    padding: 8px;
+    background: rgba(245,197,24,0.08);
+    border-radius: 8px;
+    border-left: 3px solid #f5c518;
+  }
+  .nutri-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+    font-size: 0.72rem;
+  }
+  .nutri-bar span {
+    width: 34px;
+    color: #999;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .nutri-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .nutri-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    width: 0%;
+  }
+  .nutri-fill.good  { background: linear-gradient(90deg, #2ecc71, #69db7c); }
+  .nutri-fill.ok    { background: linear-gradient(90deg, #f39c12, #f1c40f); }
+  .nutri-fill.low   { background: linear-gradient(90deg, #e74c3c, #e94560); }
+  .nutri-val {
+    width: 24px;
+    font-size: 0.65rem;
+    color: #999;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  /* ========== 历史记录弹窗 ========== */
+  .history-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  .history-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .history-card {
+    background: linear-gradient(135deg, #16213e, #1a1a2e);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 380px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transform: scale(0.8);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .history-overlay.show .history-card { transform: scale(1); }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px 12px;
+    font-size: 1.1rem;
+    color: var(--gold);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .history-close-btn {
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 1.2rem;
+    padding: 4px 8px;
+    transition: opacity 0.2s;
+  }
+  .history-close-btn:hover { opacity: 1; }
+  .history-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px;
+  }
+  .history-scroll::-webkit-scrollbar { width: 4px; }
+  .history-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .history-date-header {
+    font-size: 0.78rem;
+    color: var(--accent);
+    padding: 10px 0 4px;
+    letter-spacing: 2px;
+    border-bottom: 1px solid rgba(233,69,96,0.2);
+    margin-bottom: 6px;
+    margin-top: 4px;
+  }
+  .history-date-header:first-child { margin-top: 0; padding-top: 4px; }
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.9rem;
+    color: #ccc;
+  }
+  .history-item .h-time { color: #666; font-size: 0.78rem; }
+  .history-empty {
+    text-align: center;
+    color: #666;
+    padding: 30px 0;
+    font-size: 0.9rem;
+  }
+  .history-footer {
+    padding: 12px 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  /* ========== 接受确认动画 ========== */
+  @keyframes acceptPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  .btn-accepted { animation: acceptPop 0.3s ease; }
+
+
+  /* 响应式 */
+  @media (max-width: 500px) {
+    body { overflow-y: auto; }
+    .container { gap: 20px; padding: 20px 0; }
+    h1 { font-size: 1.6rem; letter-spacing: 2px; }
+    .wheel-wrapper, canvas { width: 300px !important; height: 300px !important; }
+    .wheel-outer { width: 320px !important; height: 320px !important; }
+    .center-btn { width: 56px; height: 56px; font-size: 0.85rem; }
+    .pointer { right: 0px; border-top-width: 8px; border-bottom-width: 8px; border-right-width: 32px; }
+    .food-tags { max-width: 320px; gap: 6px; }
+    .food-tag { font-size: 0.78rem; padding: 6px 10px 6px 12px; }
+    .food-tag .del { width: 20px; height: 20px; font-size: 0.75rem; }
+    .result-food { font-size: 1.8rem; }
+    .result-card { padding: 30px 24px; margin: 0 20px; }
+    .custom-panel { max-width: 320px; }
+    .custom-panel input { min-width: 120px; }
+    .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+    .nutri-summary { padding: 10px; margin: 10px 0 12px; }
+    .nutri-bar span { width: 28px; font-size: 0.68rem; }
+    .nutri-bar { gap: 4px; margin: 3px 0; }
+    .history-card { max-width: 340px; }
+    .history-header { font-size: 1rem; padding: 14px 16px 10px; }
+    .history-scroll { padding: 10px 16px; }
+    .history-footer { padding: 10px 16px 14px; }
+    .history-item { font-size: 0.82rem; }
+  }
+
+  @media (max-width: 360px) {
+    .wheel-wrapper, canvas { width: 270px !important; height: 270px !important; }
+    .wheel-outer { width: 290px !important; height: 290px !important; }
+    .center-btn { width: 50px; height: 50px; font-size: 0.8rem; }
+    .pointer { right: 0px; border-top-width: 7px; border-bottom-width: 7px; border-right-width: 28px; }
+    .food-tags { max-width: 280px; }
+    .custom-panel { max-width: 280px; }
+    .nutri-bar span { width: 24px; font-size: 0.65rem; }
+    .history-card { max-width: 300px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 背景粒子 -->
+<div class="particles" id="particles"></div>
+
+<div class="container">
+  <h1>🍜 今天吃什么</h1>
+
+  <!-- 转盘 -->
+  <div class="wheel-wrapper" id="wheelWrapper">
+    <div class="wheel-outer"></div>
+    <canvas id="wheel" width="400" height="400"></canvas>
+    <div class="pointer" id="pointer"></div>
+    <button class="center-btn" id="spinBtn" onclick="spin()">开<br>转</button>
+  </div>
+
+  <!-- 操作栏 -->
+  <div class="controls">
+    <button class="btn-sm" onclick="resetFoods()">🔄 恢复默认</button>
+    <button class="btn-sm" onclick="shuffleFoods()">🔀 打乱顺序</button>
+        <button class="btn-sm" onclick="toggleHistory()">📋 饮食记录</button>
+  </div>
+
+  <!-- 食物标签（点击 ✕ 移除） -->
+  <div class="food-tags" id="foodTags"></div>
+
+  <!-- 自定义添加 -->
+  <div class="custom-panel">
+    <input type="text" id="foodInput" placeholder="输入你想吃的（如：寿司）" maxlength="10"
+           onkeydown="if(event.key==='Enter')addFood()">
+    <button class="btn-sm" onclick="addFood()" style="color:#e94560;border-color:#e94560;">➕ 添加</button>
+  </div>
+</div>
+
+<!-- 历史弹窗 -->
+<div class="history-overlay" id="historyOverlay">
+  <div class="history-card">
+    <div class="history-header">
+      <span>📋 我的饮食记录</span>
+      <span class="history-close-btn" onclick="closeHistory()">✕</span>
+    </div>
+    <div class="history-scroll" id="historyBody">
+      <div class="history-empty">还没有记录哦～</div>
+    </div>
+    <div class="history-footer">
+      <button class="btn btn-ghost" onclick="closeHistory()">关闭</button>
+      <button class="btn-sm" onclick="clearHistory()" style="color:#e94560;background:rgba(233,69,96,0.1);">清空历史</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-card">
+    <div class="result-emoji">🎉</div>
+    <div class="result-label">命运选择了</div>
+    <div class="result-food" id="resultText"></div>
+    <div class="nutri-summary" id="nutriSummary">
+      <div class="nutri-title">🥗 营养分析</div>
+      <div class="nutri-recommend" id="nutriRecommend" style="display:none;"></div>
+      <div id="nutriBars"></div>
+    </div>
+    <div class="result-btns">
+      <button class="btn btn-ghost" onclick="skipFood()">😐 不太想吃</button>
+      <button class="btn btn-primary" onclick="acceptFood()">👍 就吃这个</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== 食物列表 ==========
+  const DEFAULT_FOODS = [
+    '🍲 麻辣烫', '🍗 黄焖鸡', '🍜 兰州拉面', '🥟 饺子',
+    '🔥 麻辣香锅', '🍔 炸鸡汉堡', '🍝 螺蛳粉', '🍚 煲仔饭',
+    '🍛 盖浇饭', '🥩 烤肉饭', '🍜 米线', '🥘 小火锅',
+    '🍱 日料定食', '🥪 三明治', '🍕 披萨', '🌮 塔可'
+  ];
+
+  // ========== 本地存储 & 数据持久化 ==========
+  const DATA_VERSION = 2;
+  const LS_KEY = 'foodRoulette_data';
+  const MAX_MEALS = 500;
+
+  // 每日营养目标（6维，按能量需求调整，非严格科学值）
+  const DEFAULT_TARGETS = { protein: 10, fiber: 8, vitaminC: 6, calcium: 6, iron: 5, vitaminA: 6 };
+
+  // 营养标签
+  const NUTRIENT_LABELS = { protein: '蛋白质', fiber: '膳食纤维', vitaminC: '维C', calcium: '钙', iron: '铁', vitaminA: '维A' };
+
+  // 默认食物营养库（1-5 分量）
+  const FOOD_NUTRITION = {
+    '麻辣烫':  { protein:3, fiber:4, vitaminC:3, calcium:4, iron:3, vitaminA:3 },
+    '黄焖鸡':  { protein:5, fiber:1, vitaminC:1, calcium:2, iron:3, vitaminA:2 },
+    '兰州拉面': { protein:3, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 },
+    '饺子':    { protein:3, fiber:2, vitaminC:1, calcium:2, iron:3, vitaminA:2 },
+    '麻辣香锅': { protein:4, fiber:3, vitaminC:2, calcium:2, iron:4, vitaminA:3 },
+    '炸鸡汉堡': { protein:4, fiber:1, vitaminC:1, calcium:2, iron:2, vitaminA:1 },
+    '螺蛳粉':  { protein:2, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 },
+    '煲仔饭':  { protein:3, fiber:2, vitaminC:1, calcium:2, iron:2, vitaminA:1 },
+    '盖浇饭':  { protein:3, fiber:2, vitaminC:2, calcium:2, iron:3, vitaminA:2 },
+    '烤肉饭':  { protein:5, fiber:1, vitaminC:1, calcium:2, iron:4, vitaminA:1 },
+    '米线':    { protein:2, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 },
+    '小火锅':  { protein:4, fiber:4, vitaminC:3, calcium:3, iron:3, vitaminA:3 },
+    '日料定食': { protein:4, fiber:3, vitaminC:2, calcium:3, iron:3, vitaminA:4 },
+    '三明治':  { protein:3, fiber:2, vitaminC:2, calcium:3, iron:2, vitaminA:2 },
+    '披萨':    { protein:3, fiber:1, vitaminC:1, calcium:4, iron:2, vitaminA:2 },
+    '塔可':    { protein:3, fiber:2, vitaminC:2, calcium:3, iron:2, vitaminA:2 },
+    '沙拉':    { protein:2, fiber:5, vitaminC:5, calcium:2, iron:2, vitaminA:5 },
+    '水果':    { protein:1, fiber:3, vitaminC:5, calcium:1, iron:1, vitaminA:4 },
+    '牛排':    { protein:5, fiber:1, vitaminC:1, calcium:2, iron:5, vitaminA:2 },
+    '牛肉面':  { protein:4, fiber:2, vitaminC:1, calcium:2, iron:3, vitaminA:1 },
+    '寿司':    { protein:4, fiber:2, vitaminC:1, calcium:2, iron:2, vitaminA:3 },
+    '三文鱼':  { protein:5, fiber:1, vitaminC:2, calcium:2, iron:2, vitaminA:4 },
+    '鸡胸肉':  { protein:5, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 },
+    '豆腐':    { protein:3, fiber:2, vitaminC:1, calcium:4, iron:2, vitaminA:1 },
+    '西兰花':  { protein:2, fiber:5, vitaminC:5, calcium:3, iron:2, vitaminA:4 },
+    '鸡蛋':    { protein:4, fiber:1, vitaminC:1, calcium:2, iron:3, vitaminA:3 },
+  };
+
+  // 自定义食物关键词匹配 → 营养概况
+  const NUTRIENT_KEYWORDS = [
+    { keys: ['肉','鸡','牛','猪','羊','鸭','鱼','虾','蛋白','排','腿'], profile: { protein:5, fiber:1, vitaminC:1, calcium:1, iron:3, vitaminA:1 } },
+    { keys: ['菜','沙拉','青菜','菠菜','西兰花','蔬','菇','菌'],         profile: { protein:1, fiber:5, vitaminC:4, calcium:2, iron:2, vitaminA:5 } },
+    { keys: ['面','粉','米线','米粉','面条','意面'],                    profile: { protein:2, fiber:1, vitaminC:1, calcium:1, iron:1, vitaminA:1 } },
+    { keys: ['汤','火锅','麻辣烫','冒菜','炖','煲'],                  profile: { protein:3, fiber:3, vitaminC:3, calcium:3, iron:3, vitaminA:3 } },
+    { keys: ['饭','丼','盖浇','煲仔','炒饭','便当','咖喱'],              profile: { protein:3, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 } },
+    { keys: ['包','面包','三明治','披萨','饼','汉堡','卷'],            profile: { protein:3, fiber:1, vitaminC:1, calcium:3, iron:2, vitaminA:1 } },
+    { keys: ['煎','炸','烤','烧','炒','焗'],                          profile: { protein:4, fiber:1, vitaminC:1, calcium:1, iron:2, vitaminA:1 } },
+    { keys: ['水果','果','莓','苹果','香蕉','西瓜','葡萄','橙','柠檬'],   profile: { protein:1, fiber:3, vitaminC:5, calcium:1, iron:1, vitaminA:3 } },
+    { keys: ['日料','寿司','刺身','定食','鳗鱼','生鱼'],                  profile: { protein:4, fiber:2, vitaminC:1, calcium:2, iron:2, vitaminA:3 } },
+    { keys: ['奶茶','果茶','咖啡','奶','豆','浆','汁'],                  profile: { protein:1, fiber:1, vitaminC:2, calcium:3, iron:1, vitaminA:1 } },
+    { keys: ['辣','锅','香锅','干锅','麻辣'],                          profile: { protein:4, fiber:3, vitaminC:2, calcium:2, iron:4, vitaminA:2 } },
+    { keys: ['蛋','豆腐'],                                            profile: { protein:4, fiber:1, vitaminC:1, calcium:3, iron:2, vitaminA:3 } },
+  ];
+
+  // 营养 → 推荐食物映射（填补缺口的食物建议）
+  const NUTRIENT_RECOMMENDATIONS = {
+    protein:   ['🍗 黄焖鸡','🥩 烤肉饭','🍱 日料定食','🥘 小火锅','🍳 加个蛋'],
+    fiber:     ['🥗 沙拉','🥦 西兰花','🍎 水果沙拉','🥬 炒青菜','🌽 玉米排骨'],
+    vitaminC:  ['🍊 橙汁鸡','🥝 猕猴桃','🥬 上汤菠菜','🍅 番茄牛腩','🥕 胡萝卜'],
+    calcium:   ['🥛 牛奶麦片','🦐 蒜蓉虾仁','🧈 麻婆豆腐','🥬 海带排骨','🍄 奶油蘑菇'],
+    iron:      ['🥩 铁板牛排','🩸 毛血旺','🥬 菠菜猪肝','🍖 红烧排骨','🦪 蚝油生菜'],
+    vitaminA:  ['🥕 胡萝卜','🍠 红薯','🥬 韭菜鸡蛋','🐟 红烧鱼块','🌿 蒜苗腊肉'],
+  };
+
+  let foods = [...DEFAULT_FOODS];
+  let meals = [];               // [{food, time, date}]
+  let lastVisitDate = '';       // 'YYYY-MM-DD'
+  let yesterdayGaps = {};       // {nutrient: gap}
+  let nutritionTargets = { ...DEFAULT_TARGETS };
+  let recentlySkipped = {};     // {foodName: count}  本次会话中跳过的
+  let currentResultIdx = -1;    // 当前结果的食物索引
+  let accepting = false;        // 防止重复点击"就吃这个"
+  let lastDateCheck = Date.now();
+
+  // ========== 工具函数 ==========
+  function getTodayDateStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function stripEmoji(str) {
+    return str.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{200D}\u{FE0F}\u{20E3}]\s*/u, '').trim();
+  }
+
+  function getTimeStr() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  // ========== 营养匹配 ==========
+  function getNutritionProfile(foodName) {
+    const name = stripEmoji(foodName);
+    // 精确匹配
+    if (FOOD_NUTRITION[name]) return { ...FOOD_NUTRITION[name] };
+    // 子串匹配
+    for (const [k, v] of Object.entries(FOOD_NUTRITION)) {
+      if (name.includes(k) || k.includes(name)) return { ...v };
+    }
+    // 关键词匹配
+    for (const item of NUTRIENT_KEYWORDS) {
+      if (item.keys.some(k => name.includes(k))) return { ...item.profile };
+    }
+    // 默认回退
+    return { protein:2, fiber:2, vitaminC:2, calcium:2, iron:2, vitaminA:2 };
+  }
+
+  function analyzeNutritionDeficiency() {
+    const today = getTodayDateStr();
+    const todayMeals = meals.filter(m => m.date === today);
+    const intake = { protein:0, fiber:0, vitaminC:0, calcium:0, iron:0, vitaminA:0 };
+    for (const m of todayMeals) {
+      const p = getNutritionProfile(m.food);
+      for (const key of Object.keys(intake)) { intake[key] += p[key]; }
+    }
+    const deficiencies = {};
+    for (const [key, target] of Object.entries(nutritionTargets)) {
+      const gap = target - intake[key];
+      if (gap > 0) deficiencies[key] = gap;
+    }
+    return { intake, deficiencies };
+  }
+
+  // ========== 加权随机 ==========
+  function computeFoodWeights() {
+    const { deficiencies } = analyzeNutritionDeficiency();
+    const today = getTodayDateStr();
+    const todayMeals = meals.filter(m => m.date === today);
+    const weights = foods.map((f) => {
+      let w = 1.0;
+      const profile = getNutritionProfile(f);
+      // 营养缺口加分
+      if (Object.keys(deficiencies).length > 0) {
+        let gapScore = 0;
+        for (const [nutrient, gap] of Object.entries(deficiencies)) {
+          if (profile[nutrient] >= 3) gapScore += 0.3 * profile[nutrient];
+          if (profile[nutrient] >= 4 && gap >= 4) gapScore += 0.4 * profile[nutrient];
+        }
+        w += gapScore;
+      }
+      // 昨日缺口延续（今天还没吃）
+      if (todayMeals.length === 0 && Object.keys(yesterdayGaps).length > 0) {
+        for (const [nutrient, gap] of Object.entries(yesterdayGaps)) {
+          if (profile[nutrient] >= 3) w += 0.25;
+        }
+      }
+      // 已吃过惩罚
+      const eatenCount = todayMeals.filter(m => m.food === f).length;
+      w -= eatenCount * 0.5;
+      // 3天内吃过惩罚
+      const threeDaysAgo = new Date(Date.now() - 3*86400000);
+      const dStr = threeDaysAgo.getFullYear()+'-'+String(threeDaysAgo.getMonth()+1).padStart(2,'0')+'-'+String(threeDaysAgo.getDate()).padStart(2,'0');
+      const recentCount = meals.filter(m => m.food === f && m.date >= dStr).length - eatenCount;
+      w -= recentCount * 0.2;
+      // 本次会话中跳过惩罚
+      if (recentlySkipped[f]) w -= 0.35 * (recentlySkipped[f] || 0);
+      return Math.max(w, 0.2);
+    });
+    return weights;
+  }
+
+  function selectWeightedFood() {
+    const weights = computeFoodWeights();
+    const total = weights.reduce((a,b)=>a+b,0);
+    let rand = Math.random() * total;
+    for (let i = 0; i < weights.length; i++) {
+      rand -= weights[i];
+      if (rand <= 0) return i;
+    }
+    return weights.length - 1;
+  }
+
+  // ========== 持久化 ==========
+  function saveData() {
+    try {
+      const data = {
+        version: DATA_VERSION,
+        foods,
+        meals: meals.slice(-MAX_MEALS),
+        lastVisitDate: getTodayDateStr(),
+        yesterdayGaps,
+        nutritionTargets,
+      };
+      if (meals.length > MAX_MEALS) {
+        meals = meals.slice(-MAX_MEALS);
+      }
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    } catch(e) { /* quota exceeded - silently ignore */ }
+  }
+
+  function checkDailyReset() {
+    const today = getTodayDateStr();
+    if (lastVisitDate && lastVisitDate !== today) {
+      // 跨天了 → 计算昨天缺口
+      const yesterdayMeals = meals.filter(m => m.date === lastVisitDate);
+      if (yesterdayMeals.length > 0) {
+        const yIntake = { protein:0, fiber:0, vitaminC:0, calcium:0, iron:0, vitaminA:0 };
+        for (const m of yesterdayMeals) {
+          const p = getNutritionProfile(m.food);
+          for (const key of Object.keys(yIntake)) { yIntake[key] += p[key]; }
+        }
+        yesterdayGaps = {};
+        for (const [key, target] of Object.entries(nutritionTargets)) {
+          const gap = target - yIntake[key];
+          if (gap > 0) yesterdayGaps[key] = gap;
+        }
+      }
+      // 清除本次会话中跳过的记录
+      recentlySkipped = {};
+    }
+    lastVisitDate = today;
+  }
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) {
+        foods = [...DEFAULT_FOODS];
+        meals = [];
+        lastVisitDate = getTodayDateStr();
+        yesterdayGaps = {};
+        nutritionTargets = { ...DEFAULT_TARGETS };
+        saveData();
+        return;
+      }
+      const data = JSON.parse(raw);
+      foods = (data.foods && data.foods.length > 0) ? data.foods : [...DEFAULT_FOODS];
+      meals = data.meals || [];
+      lastVisitDate = data.lastVisitDate || '';
+      yesterdayGaps = data.yesterdayGaps || {};
+      nutritionTargets = data.nutritionTargets || { ...DEFAULT_TARGETS };
+      checkDailyReset();
+      saveData();
+    } catch(e) {
+      foods = [...DEFAULT_FOODS];
+      meals = [];
+      lastVisitDate = getTodayDateStr();
+      yesterdayGaps = {};
+      nutritionTargets = { ...DEFAULT_TARGETS };
+    }
+  }
+
+  function initApp() {
+    loadData();
+    drawWheel(currentAngle);
+    renderTags();
+  }
+
+  // ========== Canvas 设置 ==========
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const size = 400;
+  const center = size / 2;
+  const radius = size / 2 - 6;
+
+  let currentAngle = 0;      // 当前角度（弧度）
+  let spinning = false;
+  let spinVelocity = 0;
+
+  // 多彩色板
+  const COLORS = [
+    '#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C',
+    '#4DABF7', '#748FFC', '#DA77F2', '#F783AC',
+    '#FF8787', '#FFC078', '#FFE066', '#8CE99A',
+    '#74C0FC', '#91A7FF', '#E599F7', '#FAA2C1'
+  ];
+
+  // ========== 绘制转盘 ==========
+  function drawWheel(angle) {
+    ctx.clearRect(0, 0, size, size);
+    const n = foods.length;
+    const sliceAngle = (2 * Math.PI) / n;
+
+    for (let i = 0; i < n; i++) {
+      const start = angle + i * sliceAngle;
+      const end = start + sliceAngle;
+
+      // 扇形
+      ctx.beginPath();
+      ctx.moveTo(center, center);
+      ctx.arc(center, center, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+
+      // 分割线
+      ctx.beginPath();
+      ctx.moveTo(center, center);
+      ctx.arc(center, center, radius, start, end);
+      ctx.lineTo(center, center);
+      ctx.strokeStyle = 'rgba(26,26,46,0.6)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 文字
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(start + sliceAngle / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = 'bold 15px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(foods[i], radius - 28, 6);
+      ctx.restore();
+    }
+
+    // 中心圆
+    const grad = ctx.createRadialGradient(center, center, 35, center, center, 55);
+    grad.addColorStop(0, '#1a1a2e');
+    grad.addColorStop(1, 'rgba(26,26,46,0.8)');
+    ctx.beginPath();
+    ctx.arc(center, center, 52, 0, 2 * Math.PI);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+    // ========== 旋转逻辑 ==========
+  function spin() {
+    if (spinning || accepting) return;
+    spinning = true;
+
+    // 检查跨天
+    if (lastDateCheck && Date.now() - lastDateCheck > 60000) {
+      checkDailyReset(); saveData(); lastDateCheck = Date.now();
+    }
+
+    const spinBtn = document.getElementById('spinBtn');
+    const pointer = document.getElementById('pointer');
+    spinBtn.disabled = true;
+    spinBtn.innerHTML = '...';
+    pointer.classList.add('spinning');
+
+    // 隐藏上次结果
+    document.getElementById('resultOverlay').classList.remove('show');
+    accepting = false;
+
+    // 使用加权随机选择目标
+    const n = foods.length;
+    let targetIdx;
+    if (n === 1) {
+      targetIdx = 0;
+    } else {
+      targetIdx = selectWeightedFood();
+    }
+    currentResultIdx = targetIdx;
+
+    // 计算目标角度：让索引 targetIdx 的扇形中心对齐指针（0弧度 / 右侧）
+    const sliceAngle = (2 * Math.PI) / n;
+    const targetCenterAngle = (2 * Math.PI - (targetIdx * sliceAngle + sliceAngle / 2)) % (2 * Math.PI);
+    const currentNorm = ((currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const deltaToTarget = ((targetCenterAngle - currentNorm) + 2 * Math.PI) % (2 * Math.PI);
+
+    // 加5-7个完整圈
+    const extraFullSpins = (5 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
+    const totalDelta = extraFullSpins + deltaToTarget;
+    const endAngle = currentAngle + totalDelta;
+
+    const duration = 4000 + Math.random() * 1000; // 4-5秒
+    const startTime = performance.now();
+    const startAngle = currentAngle;
+
+    function animate(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // cubic ease-out
+      const eased = 1 - Math.pow(1 - progress, 3);
+      currentAngle = startAngle + totalDelta * eased;
+
+      drawWheel(currentAngle);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // 停止
+        currentAngle = endAngle % (2 * Math.PI);
+        drawWheel(currentAngle);
+        spinning = false;
+        spinBtn.disabled = false;
+        spinBtn.innerHTML = '开<br>转';
+        pointer.classList.remove('spinning');
+        showResult(currentResultIdx);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // ========== 确定结果 ==========
+  function showResult(targetIdx) {
+    const food = foods[targetIdx];
+    document.getElementById('resultText').textContent = food;
+    document.getElementById('resultOverlay').classList.add('show');
+    // 渲染营养分析
+    renderNutritionSummary(food);
+  }
+
+  function closeResult() {
+    document.getElementById('resultOverlay').classList.remove('show');
+    accepting = false;
+  }
+
+  // ========== 结果操作 ==========
+  function skipFood() {
+    if (spinning) return;
+    const food = foods[currentResultIdx];
+    if (food) {
+      recentlySkipped[food] = (recentlySkipped[food] || 0) + 1;
+    }
+    closeResult();
+  }
+
+  function acceptFood() {
+    if (spinning || accepting) return;
+    if (currentResultIdx < 0 || currentResultIdx >= foods.length) return;
+    accepting = true;
+    const food = foods[currentResultIdx];
+    recordMeal(food);
+    // 显示确认动画
+    const card = document.querySelector('.result-card');
+    card.classList.add('btn-accepted');
+    setTimeout(() => { card.classList.remove('btn-accepted'); }, 400);
+    // 延迟关闭
+    setTimeout(() => {
+      closeResult();
+    }, 1200);
+  }
+
+  function recordMeal(food) {
+    const now = new Date();
+    const meal = {
+      food: food,
+      time: getTimeStr(),
+      date: getTodayDateStr(),
+    };
+    meals.push(meal);
+    // 剪裁
+    if (meals.length > MAX_MEALS) { meals = meals.slice(-MAX_MEALS); }
+    checkDailyReset();
+    saveData();
+    // 清除本轮跳过
+    recentlySkipped = {};
+  }
+
+// ========== 食物管理 ==========
+  // ========== Emoji 匹配表 ==========
+  const EMOJI_MAP = [
+    { keys: ['面', '拉面', '拌面', '凉面', '意面', '意大', 'pasta', '粉', '米线', '米粉', '河粉'], emoji: '🍜' },
+    { keys: ['饺子', '水饺', '煎饺', '蒸饺', 'dumpling'], emoji: '🥟' },
+    { keys: ['火锅', '涮', '麻辣烫', '冒菜', '串串', '关东煮'], emoji: '🥘' },
+    { keys: ['饭', '盖浇', '煲仔', '炒饭', '便当', '丼', '咖喱', '卤肉', '猪脚'], emoji: '🍚' },
+    { keys: ['汉堡', '炸鸡', '鸡块', '薯条', 'burger', '汉堡包'], emoji: '🍔' },
+    { keys: ['披萨', 'pizza', '必胜客'], emoji: '🍕' },
+    { keys: ['寿司', '刺身', '生鱼', 'sushi', '日料', '定食', '鳗鱼'], emoji: '🍱' },
+    { keys: ['三明治', 'sandwich', '吐司'], emoji: '🥪' },
+    { keys: ['塔可', 'taco', '卷饼', '墨西哥'], emoji: '🌮' },
+    { keys: ['烤肉', '烧烤', 'bbq', '羊肉串', '烤串', '烧肉', '牛排', '五花肉', '猪排'], emoji: '🥩' },
+    { keys: ['沙拉', '轻食', 'salad', '减脂'], emoji: '🥗' },
+    { keys: ['麻辣香锅', '干锅', '香锅'], emoji: '🔥' },
+    { keys: ['螺蛳粉', '酸辣粉', '螺狮粉'], emoji: '🍝' },
+    { keys: ['汤', '汤面', '馄饨', '抄手', '云吞', '粥'], emoji: '🍲' },
+    { keys: ['面包', '蛋糕', '甜点', '烘焙', '可颂', '牛角包'], emoji: '🥐' },
+    { keys: ['炸', '油条', '煎饼', '鸡蛋灌饼'], emoji: '🥮' },
+    { keys: ['鸡', '黃焖鸡', '黄焖鸡', '大盘鸡', '鸡公煲', '椰子鸡', '白切鸡'], emoji: '🍗' },
+    { keys: ['冒菜', '毛血旺', '水煮'], emoji: '🌶️' },
+    { keys: ['糖水', '甜品', '冰', '奶茶', '果茶', '柠檬茶', '咖啡', '冷饮'], emoji: '🍧' },
+    { keys: ['水果', '苹果', '香蕉', '葡萄', '西瓜', '草莓', '芒果'], emoji: '🍎' },
+    { keys: ['食堂', '快餐', '盒饭', '外卖', '随便', '将就'], emoji: '🍽️' },
+  ];
+
+  function matchEmoji(name) {
+    // 如果已经有 emoji 开头，直接返回
+    if (/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{200D}]/u.test(name)) {
+      return name;
+    }
+    const lower = name.toLowerCase();
+    for (const item of EMOJI_MAP) {
+      if (item.keys.some(k => lower.includes(k))) {
+        return item.emoji + ' ' + name;
+      }
+    }
+    // 没匹配到，给个通用食物图标
+    return '🍽️ ' + name;
+  }
+
+  function addFood() {
+    const input = document.getElementById('foodInput');
+    const val = input.value.trim();
+    if (!val) return;
+    const withEmoji = matchEmoji(val);
+    if (foods.includes(withEmoji)) {
+      input.value = '';
+      input.placeholder = '已经有了，换一个吧～';
+      setTimeout(() => input.placeholder = '输入你想吃的（如：寿司）', 2000);
+      return;
+    }
+    foods.push(withEmoji);
+    input.value = '';
+    input.focus();
+    drawWheel(currentAngle);
+    renderTags();
+    saveData();
+  }
+
+  function removeFood(index) {
+    if (foods.length <= 3) {
+      alert('至少保留3个选项哦～');
+      return;
+    }
+    foods.splice(index, 1);
+    drawWheel(currentAngle);
+    renderTags();
+    saveData();
+  }
+
+  function resetFoods() {
+    foods = [...DEFAULT_FOODS];
+    drawWheel(currentAngle);
+    renderTags();
+    saveData();
+  }
+
+  function shuffleFoods() {
+    for (let i = foods.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [foods[i], foods[j]] = [foods[j], foods[i]];
+    }
+    drawWheel(currentAngle);
+    renderTags();
+    saveData();
+  }
+
+  // ========== 食物标签渲染 ==========
+  function renderTags() {
+    const container = document.getElementById('foodTags');
+    container.innerHTML = foods.map((food, i) =>
+      `<span class="food-tag">
+        ${food}
+        <span class="del" onclick="removeFood(${i})" title="移除">✕</span>
+      </span>`
+    ).join('');
+  }
+
+  // ========== 点击弹窗外部关闭 ==========
+  document.getElementById('resultOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeResult();
+  });
+  document.getElementById('historyOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeHistory();
+  });
+
+  // ========== 键盘快捷键 ==========
+  document.addEventListener('keydown', function(e) {
+    // 输入框中不触发快捷键
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space' && !spinning) {
+      // e.preventDefault(); // 允许浏览器弹出安装提示
+      spin();
+    }
+    if (e.code === 'Escape') {
+      closeResult();
+      closeHistory();
+    }
+  });
+
+  // ========== 背景粒子 ==========
+  (function createParticles() {
+    const container = document.getElementById('particles');
+    const emojis = ['🍜', '🍕', '🍔', '🍣', '🥟', '🍛', '🍝', '🌮', '🥘', '🍱'];
+    for (let i = 0; i < 20; i++) {
+      const el = document.createElement('span');
+      el.className = 'particle';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      el.style.left = Math.random() * 100 + '%';
+      el.style.fontSize = (14 + Math.random() * 24) + 'px';
+      el.style.animationDuration = (8 + Math.random() * 12) + 's';
+      el.style.animationDelay = Math.random() * 10 + 's';
+      container.appendChild(el);
+    }
+  })();
+
+  // ========== 点击转盘也可以旋转 ==========
+  canvas.addEventListener('click', function(e) {
+    if (spinning) return;
+    // 排除点击中心按钮区域
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left - size/2;
+    const cy = e.clientY - rect.top - size/2;
+    if (Math.sqrt(cx*cx + cy*cy) < 52) return; // 中心按钮区域
+    accepting = false;
+    spin();
+  });
+
+  // ========== 摇一摇开转（手机） ==========
+  let lastShakeTime = 0;
+  if (typeof DeviceMotionEvent !== 'undefined') {
+    let shakeEnabled = false;
+    // iOS 13+ 需要用户手势触发权限请求
+    document.addEventListener('click', function enableShake() {
+      if (shakeEnabled) return;
+      shakeEnabled = true;
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(r => { if (r !== 'granted') shakeEnabled = false; })
+          .catch(() => { shakeEnabled = false; });
+      }
+    }, { once: false });
+
+    window.addEventListener('devicemotion', function(e) {
+      if (spinning || !shakeEnabled) return;
+      const acc = e.accelerationIncludingGravity;
+      if (!acc) return;
+      const force = Math.abs(acc.x || 0) + Math.abs(acc.y || 0) + Math.abs(acc.z || 0);
+      const now = Date.now();
+      // 晃动强度 > 25 且间隔 > 2 秒
+      if (force > 25 && now - lastShakeTime > 2000) {
+        lastShakeTime = now;
+        spin();
+      }
+    });
+  }
+
+  // ========== 初始绘制 ==========
+  initApp();
+
+  // ========== 营养摘要渲染 ==========
+  function renderNutritionSummary(food) {
+    const summary = document.getElementById('nutriSummary');
+    if (!summary) return;
+    const { intake, deficiencies } = analyzeNutritionDeficiency();
+    const today = getTodayDateStr();
+    const todayMeals = meals.filter(m => m.date === today);
+    
+    // 还没吃过任何东西时隐藏
+    if (todayMeals.length === 0) {
+      summary.style.display = 'none';
+      return;
+    }
+    summary.style.display = '';
+
+    // 推荐语
+    const recommendEl = document.getElementById('nutriRecommend');
+    const defKeys = Object.keys(deficiencies);
+    if (defKeys.length > 0) {
+      const topDef = defKeys.sort((a,b) => deficiencies[b] - deficiencies[a])[0];
+      const label = NUTRIENT_LABELS[topDef] || topDef;
+      const suggestions = NUTRIENT_RECOMMENDATIONS[topDef] || [];
+      const sugText = suggestions.length > 0 ? ' 推荐：' + suggestions.slice(0,3).join('、') : '';
+      recommendEl.textContent = '⚠️ ' + label + '摄入不足' + sugText;
+      recommendEl.style.display = '';
+    } else {
+      recommendEl.textContent = '✅ 今日营养均衡，太棒了！';
+      recommendEl.style.display = '';
+    }
+
+    // 进度条
+    const barsEl = document.getElementById('nutriBars');
+    const nutrients = ['protein','fiber','vitaminC','calcium','iron','vitaminA'];
+    barsEl.innerHTML = nutrients.map(n => {
+      const val = intake[n] || 0;
+      const target = nutritionTargets[n] || 1;
+      const pct = Math.min(100, Math.round(val / target * 100));
+      let cls = pct >= 80 ? 'good' : (pct >= 40 ? 'ok' : 'low');
+      return '<div class="nutri-bar"><span>' + NUTRIENT_LABELS[n] + '</span>' +
+        '<div class="nutri-track"><div class="nutri-fill ' + cls + '" style="width:' + pct + '%"></div></div>' +
+        '<div class="nutri-val">' + pct + '%</div></div>';
+    }).join('');
+  }
+
+  // ========== 历史弹窗 ==========
+  function toggleHistory() {
+    const overlay = document.getElementById('historyOverlay');
+    if (overlay.classList.contains('show')) {
+      closeHistory();
+    } else {
+      renderHistory();
+      overlay.classList.add('show');
+    }
+  }
+
+  function closeHistory() {
+    document.getElementById('historyOverlay').classList.remove('show');
+  }
+
+  function renderHistory() {
+    const body = document.getElementById('historyBody');
+    if (meals.length === 0) {
+      body.innerHTML = '<div class="history-empty">📭 还没有记录哦～<br><span style="font-size:0.75rem;">转一转，吃一顿，记录就出现了</span></div>';
+      return;
+    }
+    // 按日期分组，日期从新到旧
+    const groups = {};
+    for (const m of meals) {
+      if (!groups[m.date]) groups[m.date] = [];
+      groups[m.date].push(m);
+    }
+    const sortedDates = Object.keys(groups).sort().reverse();
+    let html = '';
+    const today = getTodayDateStr();
+    for (const date of sortedDates) {
+      let label = date;
+      if (date === today) label = '📌 今天 · ' + date;
+      else {
+        const d = new Date(date);
+        const weekdays = ['日','一','二','三','四','五','六'];
+        label = '📅 ' + date + ' 周' + weekdays[d.getDay()];
+      }
+      html += '<div class="history-date-header">' + label + '</div>';
+      const dayMeals = groups[date].slice().reverse(); // 最新在前
+      for (const m of dayMeals) {
+        html += '<div class="history-item"><span>' + m.food + '</span><span class="h-time">' + m.time + '</span></div>';
+      }
+    }
+    body.innerHTML = html;
+  }
+
+  function clearHistory() {
+    if (meals.length === 0) { closeHistory(); return; }
+    const overlay = document.getElementById('historyOverlay');
+    // 简单的确认弹窗
+    if (!confirm('确定要清空所有饮食记录吗？此操作不可恢复！')) return;
+    meals = [];
+    saveData();
+    renderHistory();
+    closeHistory();
+  }
+
+
+
+</script>
+<!-- PWA 安装 -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+
+  // 显示安装提示（Android Chrome / iOS 引导）
+  let installPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    // e.preventDefault(); // 允许浏览器弹出安装提示
+    installPrompt = e;
+  });
+
+  // iOS 智能提示：Safari 中添加引导浮层
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !localStorage.getItem('ios-hint-dismissed')) {
+    setTimeout(function() {
+      const hint = document.createElement('div');
+      hint.style.cssText = `
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: #16213e; color: #eee; padding: 14px 22px;
+        border-radius: 12px; font-size: 0.85rem; text-align: center;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+        display: flex; align-items: center; gap: 12px; max-width: 320px;
+      `;
+      hint.innerHTML = `
+        <span>📱 点击分享 → <b>添加到主屏幕</b></span>
+        <span style="cursor:pointer;font-size:1.2rem;opacity:0.5;" id="iosHintClose">✕</span>
+      `;
+      document.body.appendChild(hint);
+      document.getElementById('iosHintClose').onclick = function() {
+        hint.remove();
+        localStorage.setItem('ios-hint-dismissed', '1');
+      };
+    }, 2000);
+  }
+</script>
+</body>
+</html>
